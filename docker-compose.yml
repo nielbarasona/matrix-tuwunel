@@ -19,6 +19,9 @@ services:
             - CADDY_INGRESS_NETWORKS=caddy
         networks:
             - caddy
+        # Allows Caddy to reach services on host networking (livekit)
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - caddy_data:/data
@@ -31,7 +34,7 @@ services:
                 /.well-known/matrix/server {"m.server":"${MATRIX_SUBDOMAIN}:443"}
             caddy.1_respond: >-
                 /.well-known/matrix/client
-                {"m.server":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"m.homeserver":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc3575.proxy":{"url":"https://${MATRIX_SUBDOMAIN}"}}
+                {"m.homeserver":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"m.server":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc3575.proxy":{"url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://${RTC_SUBDOMAIN}"}]}
 
     homeserver:
         image: ghcr.io/matrix-construct/tuwunel:latest
@@ -53,6 +56,9 @@ services:
             # Federation
             TUWUNEL_ALLOW_FEDERATION: 'true'
             TUWUNEL_TRUSTED_SERVERS: '["matrix.org"]'
+            # TURN (for 1:1 voice/video calls)
+            TUWUNEL_TURN_URIS: '["turns:${SERVER_NAME}?transport=tcp","turn:${SERVER_NAME}?transport=udp","turn:${SERVER_NAME}?transport=tcp"]'
+            TUWUNEL_TURN_SECRET: ${TURN_SECRET}
             # Logging (uncomment to adjust verbosity)
             #TUWUNEL_LOG: warn,state_res=warn
         networks:
@@ -60,6 +66,40 @@ services:
         labels:
             caddy: ${MATRIX_SUBDOMAIN}
             caddy.reverse_proxy: "{{upstreams 6167}}"
+
+    coturn:
+        image: coturn/coturn:latest
+        restart: unless-stopped
+        network_mode: host
+        volumes:
+            - ./coturn.conf:/etc/coturn/turnserver.conf:ro
+
+    matrix-rtc-jwt:
+        # lk-jwt-service: issues LiveKit tokens for Element Call
+        image: ghcr.io/element-hq/lk-jwt-service:latest
+        restart: unless-stopped
+        environment:
+            - LIVEKIT_JWT_BIND=:8081
+            - LIVEKIT_URL=wss://${RTC_SUBDOMAIN}
+            - LIVEKIT_KEY=${LIVEKIT_KEY}
+            - LIVEKIT_SECRET=${LIVEKIT_SECRET}
+            - LIVEKIT_FULL_ACCESS_HOMESERVERS=${SERVER_NAME}
+        networks:
+            - caddy
+        labels:
+            caddy: ${RTC_SUBDOMAIN}
+            caddy.@jwt.path: /sfu/get* /healthz*
+            caddy.0_handle_@jwt.reverse_proxy: "{{upstreams 8081}}"
+            caddy.1_handle.reverse_proxy: host.docker.internal:7880
+
+    matrix-rtc-livekit:
+        # LiveKit: WebRTC SFU for group calls (Element Call)
+        image: livekit/livekit-server:latest
+        restart: unless-stopped
+        command: --config /etc/livekit.yaml
+        network_mode: host
+        volumes:
+            - ./livekit.yaml:/etc/livekit.yaml:ro
 
 volumes:
     db:

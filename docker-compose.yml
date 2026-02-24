@@ -89,8 +89,8 @@ services:
         labels:
             caddy: ${RTC_SUBDOMAIN}
             caddy.@jwt.path: /sfu/get* /healthz*
-            caddy.0_handle_@jwt.reverse_proxy: "{{upstreams 8081}}"
-            caddy.1_handle.reverse_proxy: host.docker.internal:7880
+            caddy.route.0_reverse_proxy: "@jwt {{upstreams 8081}}"
+            caddy.route.1_reverse_proxy: host.docker.internal:7880
 
     matrix-rtc-livekit:
         # LiveKit: WebRTC SFU for group calls (Element Call)

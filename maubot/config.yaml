@@ -1,0 +1,27 @@
+server:
+    hostname: 0.0.0.0
+    port: 29316
+    public_url: https://MATRIX_SUBDOMAIN_PLACEHOLDER
+    ui_base_path: /_matrix/maubot
+
+database: sqlite:///data/maubot.db
+
+plugin_directories:
+    upload: /data/plugins
+    load:
+        - /data/plugins
+    trash: /data/trash
+
+homeservers:
+    SERVER_NAME_PLACEHOLDER:
+        url: http://homeserver:6167
+        secret: null
+
+admins:
+    admin: MAUBOT_ADMIN_PASSWORD_PLACEHOLDER
+
+api_features:
+    login: true
+    plugin_upload: true
+    register: false
+    log_ws: true

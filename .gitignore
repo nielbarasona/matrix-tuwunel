@@ -1,1 +1,7 @@
 .env
+
+# maubot runtime data (keep config.yaml but ignore db, plugins, logs)
+maubot/*.db
+maubot/plugins/
+maubot/trash/
+maubot/logs/

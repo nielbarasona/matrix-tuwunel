@@ -102,6 +102,18 @@ services:
         volumes:
             - ./livekit.yaml:/etc/livekit.yaml:ro
 
+    maubot:
+        # maubot: plugin-based Matrix bot framework
+        # Manage via web UI at https://${MATRIX_SUBDOMAIN}/_matrix/maubot/
+        image: dock.mau.dev/maubot/maubot:latest
+        restart: unless-stopped
+        volumes:
+            - ./maubot:/data:z
+        networks:
+            - caddy
+        depends_on:
+            - homeserver
+
 volumes:
     db:
     caddy_data:

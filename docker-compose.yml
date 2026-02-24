@@ -1,0 +1,70 @@
+# Tuwunel Matrix Homeserver — Caddy Docker Proxy setup
+# Docs: https://matrix-construct.github.io/tuwunel/deploying/docker.html
+#
+# SETUP:
+#   1. cp .env.example .env  and fill in the values
+#   2. docker network create caddy
+#   3. docker compose up -d
+
+services:
+    caddy:
+        # caddy-docker-proxy: configures Caddy from container labels
+        # https://github.com/lucaslorentz/caddy-docker-proxy
+        image: lucaslorentz/caddy-docker-proxy:ci-alpine
+        restart: unless-stopped
+        ports:
+            - 80:80
+            - 443:443
+        environment:
+            - CADDY_INGRESS_NETWORKS=caddy
+        networks:
+            - caddy
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - caddy_data:/data
+        labels:
+            # Serve .well-known endpoints for Matrix federation from the root domain.
+            # This lets your Matrix IDs look like @user:example.com even though
+            # the homeserver runs on matrix.example.com.
+            caddy: ${SERVER_NAME}
+            caddy.0_respond: >-
+                /.well-known/matrix/server {"m.server":"${MATRIX_SUBDOMAIN}:443"}
+            caddy.1_respond: >-
+                /.well-known/matrix/client
+                {"m.server":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"m.homeserver":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc3575.proxy":{"url":"https://${MATRIX_SUBDOMAIN}"}}
+
+    homeserver:
+        image: ghcr.io/matrix-construct/tuwunel:latest
+        restart: unless-stopped
+        volumes:
+            - db:/var/lib/tuwunel
+            # Uncomment to use a config file instead of env vars:
+            #- ./tuwunel.toml:/etc/tuwunel.toml
+        environment:
+            # The Matrix server name that appears in user IDs (@user:SERVER_NAME)
+            TUWUNEL_SERVER_NAME: ${SERVER_NAME}
+            TUWUNEL_DATABASE_PATH: /var/lib/tuwunel
+            TUWUNEL_PORT: 6167
+            TUWUNEL_ADDRESS: 0.0.0.0
+            TUWUNEL_MAX_REQUEST_SIZE: 20000000  # ~20 MB
+            # Registration: token-gated
+            TUWUNEL_ALLOW_REGISTRATION: 'true'
+            TUWUNEL_REGISTRATION_TOKEN: ${REGISTRATION_TOKEN}
+            # Federation
+            TUWUNEL_ALLOW_FEDERATION: 'true'
+            TUWUNEL_TRUSTED_SERVERS: '["matrix.org"]'
+            # Logging (uncomment to adjust verbosity)
+            #TUWUNEL_LOG: warn,state_res=warn
+        networks:
+            - caddy
+        labels:
+            caddy: ${MATRIX_SUBDOMAIN}
+            caddy.reverse_proxy: "{{upstreams 6167}}"
+
+volumes:
+    db:
+    caddy_data:
+
+networks:
+    caddy:
+        external: true

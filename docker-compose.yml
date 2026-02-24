@@ -30,6 +30,7 @@ services:
             # This lets your Matrix IDs look like @user:example.com even though
             # the homeserver runs on matrix.example.com.
             caddy: ${SERVER_NAME}
+            caddy.header: /.well-known/matrix/* Access-Control-Allow-Origin *
             caddy.0_respond: >-
                 /.well-known/matrix/server {"m.server":"${MATRIX_SUBDOMAIN}:443"}
             caddy.1_respond: >-

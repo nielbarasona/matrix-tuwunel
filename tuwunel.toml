@@ -1,3 +1,4 @@
+[global]
 database_path = "/var/lib/tuwunel"
 port = 6167
 address = ["0.0.0.0"]

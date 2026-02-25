@@ -60,6 +60,7 @@ services:
             # TURN (for 1:1 voice/video calls)
             TUWUNEL_TURN_URIS: '["turns:${SERVER_NAME}?transport=tcp","turn:${SERVER_NAME}?transport=udp","turn:${SERVER_NAME}?transport=tcp"]'
             TUWUNEL_TURN_SECRET: ${TURN_SECRET}
+            TUWUNEL_NEW_USER_DISPLAYNAME_SUFFIX: ''
             # Logging (uncomment to adjust verbosity)
             #TUWUNEL_LOG: warn,state_res=warn
         networks:

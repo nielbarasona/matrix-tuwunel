@@ -82,6 +82,17 @@ services:
             caddy.route.0_reverse_proxy: "@jwt {{upstreams 8081}}"
             caddy.route.1_reverse_proxy: host.docker.internal:7880
 
+    www:
+        image: nginx:alpine
+        restart: unless-stopped
+        volumes:
+            - ./www:/usr/share/nginx/html:ro
+        networks:
+            - caddy
+        labels:
+            caddy: join.${SERVER_NAME}
+            caddy.reverse_proxy: "{{upstreams 80}}"
+
     matrix-rtc-livekit:
         # LiveKit: WebRTC SFU for group calls (Element Call)
         image: livekit/livekit-server:latest

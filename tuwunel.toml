@@ -1,0 +1,10 @@
+database_path = "/var/lib/tuwunel"
+port = 6167
+address = ["0.0.0.0"]
+max_request_size = 20000000
+
+allow_registration = true
+allow_federation = true
+trusted_servers = ["matrix.org"]
+
+new_user_displayname_suffix = ""

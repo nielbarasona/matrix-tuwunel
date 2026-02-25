@@ -42,25 +42,12 @@ services:
         restart: unless-stopped
         volumes:
             - db:/var/lib/tuwunel
-            # Uncomment to use a config file instead of env vars:
-            #- ./tuwunel.toml:/etc/tuwunel.toml
+            - ./tuwunel.toml:/etc/tuwunel.toml:ro
         environment:
-            # The Matrix server name that appears in user IDs (@user:SERVER_NAME)
             TUWUNEL_SERVER_NAME: ${SERVER_NAME}
-            TUWUNEL_DATABASE_PATH: /var/lib/tuwunel
-            TUWUNEL_PORT: 6167
-            TUWUNEL_ADDRESS: 0.0.0.0
-            TUWUNEL_MAX_REQUEST_SIZE: 20000000  # ~20 MB
-            # Registration: token-gated
-            TUWUNEL_ALLOW_REGISTRATION: 'true'
             TUWUNEL_REGISTRATION_TOKEN: ${REGISTRATION_TOKEN}
-            # Federation
-            TUWUNEL_ALLOW_FEDERATION: 'true'
-            TUWUNEL_TRUSTED_SERVERS: '["matrix.org"]'
-            # TURN (for 1:1 voice/video calls)
             TUWUNEL_TURN_URIS: '["turns:${SERVER_NAME}?transport=tcp","turn:${SERVER_NAME}?transport=udp","turn:${SERVER_NAME}?transport=tcp"]'
             TUWUNEL_TURN_SECRET: ${TURN_SECRET}
-            TUWUNEL_NEW_USER_DISPLAYNAME_SUFFIX: ''
             # Logging (uncomment to adjust verbosity)
             #TUWUNEL_LOG: warn,state_res=warn
         networks:

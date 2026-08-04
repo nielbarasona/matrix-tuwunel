@@ -6,7 +6,11 @@ rtc:
   tcp_port: 7881
   port_range_start: 50100
   port_range_end: 50200
-  use_external_ip: true
+  # Public IP is bound directly to eth0 (typical VPS), not 1:1 NAT'd, so advertise
+  # it explicitly instead of use_external_ip — otherwise host networking also
+  # advertises unreachable docker bridge / tailscale addresses as ICE candidates.
+  use_external_ip: false
+  node_ip: "72.61.0.158"
   enable_loopback_candidate: false
 
 keys:

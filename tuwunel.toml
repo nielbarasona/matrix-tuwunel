@@ -8,4 +8,11 @@ allow_registration = true
 allow_federation = true
 trusted_servers = ["matrix.org"]
 
+# Caddy is the only ingress path (no ports: on the homeserver container),
+# so trust the X-Forwarded-For it sets — otherwise logs/rate-limiting see
+# Caddy's address instead of the real client.
+ip_source = "rightmost_x_forwarded_for"
+
+database_backup_path = "/var/lib/tuwunel-backups"
+
 new_user_displayname_suffix = ""

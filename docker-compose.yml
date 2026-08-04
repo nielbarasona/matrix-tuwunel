@@ -30,21 +30,29 @@ services:
             # This lets your Matrix IDs look like @user:example.com even though
             # the homeserver runs on matrix.example.com.
             caddy: ${SERVER_NAME}
-            caddy.header: /.well-known/matrix/* Access-Control-Allow-Origin *
+            caddy.@matrix.path: /.well-known/matrix/*
+            caddy.header: "@matrix"
+            caddy.header.Access-Control-Allow-Origin: '"*"'
+            caddy.header.Access-Control-Allow-Methods: '"GET, POST, PUT, DELETE, OPTIONS"'
+            caddy.header.Access-Control-Allow-Headers: '"X-Requested-With, Content-Type, Authorization"'
+            caddy.header.Content-Type: '"application/json"'
             caddy.0_respond: >-
                 /.well-known/matrix/server {"m.server":"${MATRIX_SUBDOMAIN}:443"}
             caddy.1_respond: >-
                 /.well-known/matrix/client
-                {"m.homeserver":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"m.server":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc3575.proxy":{"url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://${RTC_SUBDOMAIN}"}]}
+                {"m.homeserver":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://${RTC_SUBDOMAIN}"}]}
 
     homeserver:
         image: ghcr.io/matrix-construct/tuwunel:latest
         restart: unless-stopped
-        command: --config /etc/tuwunel.toml
         volumes:
             - db:/var/lib/tuwunel
+            - backups:/var/lib/tuwunel-backups
             - ./tuwunel.toml:/etc/tuwunel.toml:ro
         environment:
+            # HEALTHCHECK runs `tuwunel --health-check` as a separate invocation that
+            # can't see `command:` args, so config must come via env instead.
+            TUWUNEL_CONFIG: /etc/tuwunel.toml
             TUWUNEL_SERVER_NAME: ${SERVER_NAME}
             TUWUNEL_REGISTRATION_TOKEN: ${REGISTRATION_TOKEN}
             TUWUNEL_TURN_URIS: '["turns:${SERVER_NAME}?transport=tcp","turn:${SERVER_NAME}?transport=udp","turn:${SERVER_NAME}?transport=tcp"]'
@@ -104,6 +112,7 @@ services:
 
 volumes:
     db:
+    backups:
     caddy_data:
 
 networks:

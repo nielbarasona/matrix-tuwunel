@@ -10,7 +10,7 @@ services:
     caddy:
         # caddy-docker-proxy: configures Caddy from container labels
         # https://github.com/lucaslorentz/caddy-docker-proxy
-        image: lucaslorentz/caddy-docker-proxy:ci-alpine
+        image: lucaslorentz/caddy-docker-proxy:2.13.1-alpine
         restart: unless-stopped
         ports:
             - 80:80
@@ -43,7 +43,7 @@ services:
                 {"m.homeserver":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://${RTC_SUBDOMAIN}"}]}
 
     homeserver:
-        image: ghcr.io/matrix-construct/tuwunel:latest
+        image: ghcr.io/matrix-construct/tuwunel:v1.9.0
         restart: unless-stopped
         volumes:
             - db:/var/lib/tuwunel
@@ -66,15 +66,22 @@ services:
             caddy.reverse_proxy: "{{upstreams 6167}}"
 
     coturn:
-        image: coturn/coturn:latest
+        image: coturn/coturn:4.17.2
         restart: unless-stopped
         network_mode: host
+        # Replaces the image's default command, so its --log-file and --external-ip are repeated here.
+        # External IP is fixed: the public IP is bound directly to eth0 (same as livekit.yaml's node_ip).
+        command:
+            - --log-file=stdout
+            - --external-ip=72.61.0.158
+            - --static-auth-secret=${TURN_SECRET}
+            - --realm=${SERVER_NAME}
         volumes:
             - ./coturn.conf:/etc/coturn/turnserver.conf:ro
 
     matrix-rtc-jwt:
         # lk-jwt-service: issues LiveKit tokens for Element Call
-        image: ghcr.io/element-hq/lk-jwt-service:latest
+        image: ghcr.io/element-hq/lk-jwt-service:0.5.0
         restart: unless-stopped
         environment:
             - LIVEKIT_JWT_BIND=:8081
@@ -91,7 +98,7 @@ services:
             caddy.route.1_reverse_proxy: host.docker.internal:7880
 
     www:
-        image: nginx:alpine
+        image: nginx:1.31.3-alpine
         restart: unless-stopped
         volumes:
             - ./www:/usr/share/nginx/html:ro
@@ -103,10 +110,12 @@ services:
 
     matrix-rtc-livekit:
         # LiveKit: WebRTC SFU for group calls (Element Call)
-        image: livekit/livekit-server:latest
+        image: livekit/livekit-server:v1.13.5
         restart: unless-stopped
         command: --config /etc/livekit.yaml
         network_mode: host
+        environment:
+            - "LIVEKIT_KEYS=${LIVEKIT_KEY}: ${LIVEKIT_SECRET}"
         volumes:
             - ./livekit.yaml:/etc/livekit.yaml:ro
 

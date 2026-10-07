@@ -1,0 +1,60 @@
+name: deploy
+
+# Pushes the stack to host-vm-bos-1 over Tailscale SSH. The VPS can't reach Forgejo
+# (tag:vps-public has no outbound grants), so the runner pushes instead of the VPS pulling.
+# Needs forgejo-runner on the tailnet as tag:ci, and the tag:ci grant + ssh rule in the tailnet policy.
+# Secrets live only in the server's .env; nothing in the repo holds them.
+on:
+  push:
+    branches: [main]
+    paths: [docker-compose.yml, tuwunel.toml, coturn.conf, livekit.yaml, "www/**"]
+  workflow_dispatch:
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    runs-on: debian
+    env:
+      # host-vm-bos-1's Tailscale IP: the runner doesn't use MagicDNS (--accept-dns=false)
+      TARGET: barasoap@100.68.165.43
+      # fresh container every run, so there's never a known_hosts; the WireGuard tunnel already authenticates the peer
+      SSH_OPTS: -o BatchMode=yes -o StrictHostKeyChecking=accept-new
+      STACK: git/matrix-tuwunel
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Copy stack files
+        run: |
+          sums() { ssh $SSH_OPTS "$TARGET" "cd $STACK && md5sum tuwunel.toml coturn.conf livekit.yaml"; }
+          sums > before
+          scp $SSH_OPTS -r docker-compose.yml tuwunel.toml coturn.conf livekit.yaml www "$TARGET:$STACK/"
+          sums > after
+          # services whose mounted config file changed
+          restart=$(diff before after | awk '/^>/ {print $3}' | sed -e s/tuwunel.toml/homeserver/ -e s/coturn.conf/coturn/ -e s/livekit.yaml/matrix-rtc-livekit/ | xargs)
+          echo "RESTART=$restart" >> "$GITHUB_ENV"
+
+      - name: Pull and restart
+        run: ssh $SSH_OPTS "$TARGET" "cd $STACK && docker compose pull && docker compose up -d"
+
+      # up -d doesn't restart a service when only its mounted config file changed
+      - name: Restart services with changed config
+        if: env.RESTART != ''
+        run: ssh $SSH_OPTS "$TARGET" "cd $STACK && docker compose restart $RESTART"
+
+      - name: Wait for Tuwunel to be healthy
+        run: |
+          for i in $(seq 24); do
+            s=$(ssh $SSH_OPTS "$TARGET" "docker inspect -f '{{.State.Health.Status}}' matrix-tuwunel-homeserver-1")
+            echo "homeserver: $s"
+            [ "$s" = healthy ] && exit 0
+            sleep 5
+          done
+          exit 1
+
+      - name: Check public endpoints
+        run: |
+          curl -fsS -o /dev/null -w "matrix %{http_code}\n" https://matrix.baraso.app/_matrix/client/versions
+          curl -fsS -o /dev/null -w "well-known %{http_code}\n" https://baraso.app/.well-known/matrix/client
+          curl -fsS -o /dev/null -w "join %{http_code}\n" https://join.baraso.app/
+          curl -fsS -o /dev/null -w "livekit-jwt %{http_code}\n" https://matrix-rtc.baraso.app/healthz

@@ -13,5 +13,4 @@ rtc:
   node_ip: "72.61.0.158"
   enable_loopback_candidate: false
 
-keys:
-  LIVEKIT_KEY_PLACEHOLDER: LIVEKIT_SECRET_PLACEHOLDER
+# keys come from .env via LIVEKIT_KEYS in docker-compose.yml

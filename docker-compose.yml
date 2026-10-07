@@ -69,6 +69,13 @@ services:
         image: coturn/coturn:4.17.2
         restart: unless-stopped
         network_mode: host
+        # Replaces the image's default command, so its --log-file and --external-ip are repeated here.
+        # External IP is fixed: the public IP is bound directly to eth0 (same as livekit.yaml's node_ip).
+        command:
+            - --log-file=stdout
+            - --external-ip=72.61.0.158
+            - --static-auth-secret=${TURN_SECRET}
+            - --realm=${SERVER_NAME}
         volumes:
             - ./coturn.conf:/etc/coturn/turnserver.conf:ro
 
@@ -107,6 +114,8 @@ services:
         restart: unless-stopped
         command: --config /etc/livekit.yaml
         network_mode: host
+        environment:
+            - "LIVEKIT_KEYS=${LIVEKIT_KEY}: ${LIVEKIT_SECRET}"
         volumes:
             - ./livekit.yaml:/etc/livekit.yaml:ro
 

@@ -3,13 +3,11 @@ name: deploy
 # Pushes the stack to host-vm-bos-1 over Tailscale SSH. The VPS can't reach Forgejo
 # (tag:vps-public has no outbound grants), so the runner pushes instead of the VPS pulling.
 # Needs forgejo-runner on the tailnet as tag:ci, and the tag:ci grant + ssh rule in the tailnet policy.
-#
-# coturn.conf and livekit.yaml are deliberately NOT copied: the server's copies hold the
-# real TURN/LiveKit secrets, the repo only has placeholders. Change those on the server by hand.
+# Secrets live only in the server's .env; nothing in the repo holds them.
 on:
   push:
     branches: [main]
-    paths: [docker-compose.yml, tuwunel.toml, "www/**"]
+    paths: [docker-compose.yml, tuwunel.toml, coturn.conf, livekit.yaml, "www/**"]
   workflow_dispatch:
 
 concurrency: deploy
@@ -28,18 +26,21 @@ jobs:
 
       - name: Copy stack files
         run: |
-          old=$(ssh $SSH_OPTS "$TARGET" "md5sum < $STACK/tuwunel.toml")
-          scp $SSH_OPTS -r docker-compose.yml tuwunel.toml www "$TARGET:$STACK/"
-          new=$(ssh $SSH_OPTS "$TARGET" "md5sum < $STACK/tuwunel.toml")
-          [ "$old" = "$new" ] || echo TOML_CHANGED=1 >> "$GITHUB_ENV"
+          sums() { ssh $SSH_OPTS "$TARGET" "cd $STACK && md5sum tuwunel.toml coturn.conf livekit.yaml"; }
+          sums > before
+          scp $SSH_OPTS -r docker-compose.yml tuwunel.toml coturn.conf livekit.yaml www "$TARGET:$STACK/"
+          sums > after
+          # services whose mounted config file changed
+          restart=$(diff before after | awk '/^>/ {print $3}' | sed -e s/tuwunel.toml/homeserver/ -e s/coturn.conf/coturn/ -e s/livekit.yaml/matrix-rtc-livekit/ | xargs)
+          echo "RESTART=$restart" >> "$GITHUB_ENV"
 
       - name: Pull and restart
         run: ssh $SSH_OPTS "$TARGET" "cd $STACK && docker compose pull && docker compose up -d"
 
-      # up -d doesn't restart tuwunel when only the mounted tuwunel.toml changed
-      - name: Restart Tuwunel for config change
-        if: env.TOML_CHANGED == '1'
-        run: ssh $SSH_OPTS "$TARGET" "cd $STACK && docker compose restart homeserver"
+      # up -d doesn't restart a service when only its mounted config file changed
+      - name: Restart services with changed config
+        if: env.RESTART != ''
+        run: ssh $SSH_OPTS "$TARGET" "cd $STACK && docker compose restart $RESTART"
 
       - name: Wait for Tuwunel to be healthy
         run: |

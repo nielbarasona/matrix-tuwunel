@@ -43,7 +43,7 @@ services:
                 {"m.homeserver":{"base_url":"https://${MATRIX_SUBDOMAIN}"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://${RTC_SUBDOMAIN}"}]}
 
     homeserver:
-        image: ghcr.io/matrix-construct/tuwunel:v1.9.3
+        image: ghcr.io/matrix-construct/tuwunel:v1.9.4
         restart: unless-stopped
         volumes:
             - db:/var/lib/tuwunel

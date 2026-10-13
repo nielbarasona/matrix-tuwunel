@@ -81,7 +81,7 @@ services:
 
     matrix-rtc-jwt:
         # lk-jwt-service: issues LiveKit tokens for Element Call
-        image: ghcr.io/element-hq/lk-jwt-service:0.8.0
+        image: ghcr.io/element-hq/lk-jwt-service:0.9.0
         restart: unless-stopped
         environment:
             - LIVEKIT_JWT_BIND=:8081

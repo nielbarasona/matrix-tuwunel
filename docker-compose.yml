@@ -98,7 +98,7 @@ services:
             caddy.route.1_reverse_proxy: host.docker.internal:7880
 
     www:
-        image: nginx:1.31.6-alpine
+        image: nginx:1.31.7-alpine
         restart: unless-stopped
         volumes:
             - ./www:/usr/share/nginx/html:ro

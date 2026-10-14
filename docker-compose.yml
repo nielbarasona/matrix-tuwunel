@@ -110,7 +110,7 @@ services:
 
     matrix-rtc-livekit:
         # LiveKit: WebRTC SFU for group calls (Element Call)
-        image: livekit/livekit-server:v1.13.9
+        image: livekit/livekit-server:v1.13.10
         restart: unless-stopped
         command: --config /etc/livekit.yaml
         network_mode: host
